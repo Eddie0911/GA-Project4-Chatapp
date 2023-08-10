@@ -6,6 +6,7 @@ import User from './models/User.js';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
+import WebSocket, { WebSocketServer } from 'ws';
 
 
 
@@ -86,6 +87,41 @@ app.post('/register', async(req,res)=>{
 })
 
 
-app.listen(4040,()=>{
-    console.log('listening on port 4040');
+const server = app.listen(4040)
+
+const wss = new WebSocketServer({server});
+
+wss.on('connection',(connection,req)=>{
+    const cookies = req.headers.cookie;
+    if(cookies){
+        const tokenCookieString = cookies.split(';').find(str => str.startsWith('token='));
+        if(tokenCookieString){
+            const token = tokenCookieString.split('=')[1];
+            if(token){
+                jwt.verify(token, jwtSecret, {} , (err,userData)=>{
+                    if(err) throw err;
+                    const {userId, username} = userData;
+                    connection.userId = userId;
+                    connection.username = username;
+                });
+            }
+        }
+    }
+
+    connection.on('message',(message)=>{
+        const messageData = JSON.parse(message.toString());
+        console.log(messageData);
+        const{recipient, text} = messageData;
+        if(recipient && text){
+            [...wss.clients]
+            .filter(c => c.userId === recipient)
+            .forEach(c =>c.send(JSON.stringify({text})));
+        }
+    });
+
+    [...wss.clients].forEach(client =>{
+        client.send(JSON.stringify({
+            online:[...wss.clients].map(c => ({userId: c.userId, username:c.username}))
+        }));
+    });
 });

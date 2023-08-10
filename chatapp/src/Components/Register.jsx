@@ -16,9 +16,6 @@ export default function RegisterAndLoginForm() {
       try{
         const respone = await axios.get(`api/check-username/${username}`);
         setIsUsernameTaken(respone.data.exists);
-        if(!respone.data.exists){
-          setIsUsernameTaken(false);
-        }
       } catch(error){
         console.log(error);
         return false;
@@ -30,7 +27,10 @@ export default function RegisterAndLoginForm() {
     const url = isLoginOrRegister === 'register' ? 'register' : 'login';
     if (isLoginOrRegister === 'register'){
       await checkUsernameExists(username);
-    }
+    } 
+    // else {
+    //   await checkUsernameExists(username);
+    // }
     const form = ev.target;
     const formData = new FormData(form);
 
@@ -56,17 +56,18 @@ export default function RegisterAndLoginForm() {
                onChange={ev => {setUsername(ev.target.value)
                 checkUsernameExists(ev.target.value)
               }}
-               type="text" placeholder="username" name="username"
+               type="text" placeholder="username" name="username" required
                className="block w-full rounded-sm p-2 mb-2 border" />
-          {isLoginOrRegister == 'register' && isUsernameTaken && <p className="text-red-500">Username is already taken.</p>}
-          {isLoginOrRegister == 'login' && !isUsernameTaken && username != '' &&(
-          <p className="text-red-500">Username not found. Consider registering.</p>
-        )}
+               {isLoginOrRegister == 'register' && isUsernameTaken && <p className="text-red-500">Username is already taken.</p>}
+               {isLoginOrRegister == 'login' && !isUsernameTaken && username != '' &&(
+                <p className="text-red-500">Username not found. Consider registering.</p>
+                )}
         <input value={password}
                onChange={ev => setPassword(ev.target.value)}
                type="password"
                placeholder="password"
                name="password"
+               required
                className="block w-full rounded-sm p-2 mb-2 border" />
         <button className="bg-blue-500 text-white block w-full rounded-sm p-2">
           {isLoginOrRegister === 'register' ? 'Register' : 'Login'}
