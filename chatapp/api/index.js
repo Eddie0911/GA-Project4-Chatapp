@@ -1,11 +1,12 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import mongoose from 'mongoose';
+import mongoose, { connect } from 'mongoose';
 import jwt from 'jsonwebtoken';
 import User from './models/User.js';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
+import Message from './models/Message.js'
 import WebSocket, { WebSocketServer } from 'ws';
 
 
@@ -24,6 +25,20 @@ app.use(cors({
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     origin: process.env.CLIENT_URL,
 }));
+
+async function getUserDataFromRequest(req) {
+    return new Promise((resolve, reject) => {
+      const token = req.cookies?.token;
+      if (token) {
+        jwt.verify(token, jwtSecret, {}, (err, userData) => {
+          if (err) throw err;
+          resolve(userData);
+        });
+      } else {
+        reject('no token');
+      }
+    });
+  }
 
 app.get('/test', (req,res)=>{
     res.json('test ok');
@@ -44,7 +59,6 @@ app.get('/profile',(req,res)=>{
 
 app.get('/api/check-username/:username', async (req,res)=>{
     const{ username } = req.params;
-
     try {
         const user = await User.findOne({ username });
         res.json({exists:!!user});
@@ -52,7 +66,18 @@ app.get('/api/check-username/:username', async (req,res)=>{
         console.log(error);
         res.status(500).json({message:"An error occurred"});
     }
-})
+});
+
+app.get('/messages/:userId', async (req,res)=>{
+    const {userId} = req.params;
+    const userData = await getUserDataFromRequest(req);
+    const ourUserId = userData.userId;
+    const messages = await Message.find({
+        sender:{$in:[userId,ourUserId]},
+        recipient:{$in:[userId,ourUserId]},
+    }).sort({createdAt:1});
+    res.json(messages);
+});
 
 app.post('/login', async (req,res) => {
     const {username, password} = req.body;
@@ -108,20 +133,33 @@ wss.on('connection',(connection,req)=>{
         }
     }
 
-    connection.on('message',(message)=>{
+    connection.on('message', async (message)=>{
         const messageData = JSON.parse(message.toString());
         console.log(messageData);
         const{recipient, text} = messageData;
         if(recipient && text){
+            const messageDoc =  await Message.create({
+                sender:connection.userId,
+                recipient,
+                text,
+            });
             [...wss.clients]
             .filter(c => c.userId === recipient)
-            .forEach(c =>c.send(JSON.stringify({text})));
+            .forEach(c =>c.send(JSON.stringify({
+                text,
+                sender:connection.userId,
+                id:messageDoc._id,
+                recipient,
+            })));
         }
     });
 
     [...wss.clients].forEach(client =>{
         client.send(JSON.stringify({
-            online:[...wss.clients].map(c => ({userId: c.userId, username:c.username}))
+            online:[...wss.clients].map(c => ({
+                userId: c.userId, 
+                username:c.username,
+            }))
         }));
     });
 });

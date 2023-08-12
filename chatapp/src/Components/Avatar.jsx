@@ -5,8 +5,10 @@ export function Avatar({userId, username}){
     const colorIndex = userIdBase10 % colors.length;
     const color = colors[colorIndex];
     return (
-        <div className={"w-8 h-8 rounded-full flex items-center " + color}>
-            <div className="text-center w-full opacity-70">{username[0]}</div>
+        <div className={"rounded-full flex items-center justify-center " + color}>
+            <div className="w-full opacity-70">
+                <div className="w-8 h-8 flex items-center justify-center">{username[0]}</div>
+            </div>
         </div>
     )
 }
