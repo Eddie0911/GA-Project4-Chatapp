@@ -6,8 +6,11 @@ import User from './models/User.js';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
-import Message from './models/Message.js'
-import WebSocket, { WebSocketServer } from 'ws';
+import Message from './models/Message.js';
+import { WebSocketServer } from 'ws';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 
 
@@ -15,10 +18,14 @@ dotenv.config();
 mongoose.connect(process.env.MONGO_URL);
 const jwtSecret = process.env.JWT_SECRET;
 const bcryptSalt = bcrypt.genSaltSync(10);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
+app.use('/uploads', express.static(path.join(__dirname ,'uploads')));
 
 app.use(cors({
     credentials: true,
@@ -57,6 +64,12 @@ app.get('/profile',(req,res)=>{
     }
 });
 
+
+app.get('/people', async (req,res) => {
+    const users = await User.find({},{'_id':1,username:1});
+    res.json(users);
+})
+
 app.get('/api/check-username/:username', async (req,res)=>{
     const{ username } = req.params;
     try {
@@ -94,6 +107,10 @@ app.post('/login', async (req,res) => {
     }
   });
 
+app.post('/logout', (req,res) =>{
+    res.cookie('token', '', {sameSite:'none', secure:true}).json('ok');
+});
+
 app.post('/register', async(req,res)=>{
     // const {username , password} = req.body;
     const username = req.body.username;
@@ -109,7 +126,7 @@ app.post('/register', async(req,res)=>{
         } catch(error){
             res.status(400).json({message:"send this error"});
         }
-})
+});
 
 
 const server = app.listen(4040)
@@ -117,6 +134,35 @@ const server = app.listen(4040)
 const wss = new WebSocketServer({server});
 
 wss.on('connection',(connection,req)=>{
+
+    function notifyAboutOnlinePeople() {
+        [...wss.clients].forEach(client => {
+          client.send(JSON.stringify({
+            online: [...wss.clients].map(c => ({userId:c.userId,username:c.username})),
+          }));
+        });
+      }
+    
+      connection.isAlive = true;
+    
+      connection.timer = setInterval(() => {
+        connection.ping();
+        connection.deathTimer = setTimeout(() => {
+          connection.isAlive = false;
+          clearInterval(connection.timer);
+          connection.terminate();
+          notifyAboutOnlinePeople();
+          console.log('dead');
+        }, 1000);
+      }, 5000);
+    
+      connection.on('pong', () => {
+        clearTimeout(connection.deathTimer);
+      });  
+
+
+
+
     const cookies = req.headers.cookie;
     if(cookies){
         const tokenCookieString = cookies.split(';').find(str => str.startsWith('token='));
@@ -136,12 +182,28 @@ wss.on('connection',(connection,req)=>{
     connection.on('message', async (message)=>{
         const messageData = JSON.parse(message.toString());
         console.log(messageData);
-        const{recipient, text} = messageData;
-        if(recipient && text){
+        const{recipient, text,file} = messageData;
+        let filename = null;
+        if(file){
+            console.log('size',file.data.length);
+            const parts = file.name.split('.');
+            console.log(parts);
+            const ext = parts[parts.length -1];
+            filename = parts[0] + "." + ext;
+            const __filename = fileURLToPath(import.meta.url);
+            const __dirname = path.dirname(__filename);
+            const filePath = path.join(__dirname,'uploads',filename);
+            const bufferData = new Buffer.from(file.data.split(',')[1], 'base64');
+            fs.writeFile(filePath,bufferData, ()=>{
+                console.log('file saved:' + filePath);
+            })
+        }
+        if(recipient && (text || file)){
             const messageDoc =  await Message.create({
                 sender:connection.userId,
                 recipient,
                 text,
+                file:file ? filename : null,
             });
             [...wss.clients]
             .filter(c => c.userId === recipient)
@@ -150,16 +212,10 @@ wss.on('connection',(connection,req)=>{
                 sender:connection.userId,
                 id:messageDoc._id,
                 recipient,
-            })));
+                file:file ? filename : null,
+            }))) ;
         }
     });
-
-    [...wss.clients].forEach(client =>{
-        client.send(JSON.stringify({
-            online:[...wss.clients].map(c => ({
-                userId: c.userId, 
-                username:c.username,
-            }))
-        }));
-    });
+    notifyAboutOnlinePeople();
 });
+

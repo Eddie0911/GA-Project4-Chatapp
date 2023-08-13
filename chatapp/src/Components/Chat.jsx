@@ -1,19 +1,26 @@
-import { useContext, useEffect, useState, useRef} from 'react'
-import {BsFillSendCheckFill} from 'react-icons/Bs'
-import {BsCupStraw} from 'react-icons/Bs';
+import { useContext, useEffect, useState, useRef} from 'react';
 import { on } from 'ws';
 import { Avatar } from './Avatar';
 import { UserContext } from './UserContext';
 import axios from 'axios';
 import {uniqBy} from 'lodash';
+import { Contact } from './Contact';
+import {RiUserSharedFill} from 'react-icons/Ri';
+import {IoDocumentAttachSharp} from 'react-icons/io5'
+import {BsFillSendCheckFill} from 'react-icons/Bs';
+import {BsCupStraw} from 'react-icons/Bs';
+import {TiAttachment} from 'react-icons/Ti'
 
 export function Chat(){
     const [ws, setWs] = useState(null);
     const [onlinePeople,setOnlinePeople] = useState({});
+    const [offlinePeople,setOfflinePeople] = useState({});
     const [selectedUserId,setSelectedUserId] = useState(null);
     const [newMessageText,setNewMessageText] = useState('');
     const [messages,setMessages] = useState([]);
-    const {username,id} = useContext(UserContext);
+    // const [selectedUsername,setSelectedUsername] = useState(null);
+    const {username,id,setId,setUsername} = useContext(UserContext);
+    
     const divUnderMessages = useRef();
 
     //TODO Check useEffect 
@@ -33,6 +40,7 @@ export function Chat(){
         });
     }
 
+
     function showOnlinePeople(peopleArray){
         const people = {};
         peopleArray.forEach(({userId, username}) => {
@@ -47,27 +55,69 @@ export function Chat(){
         if('online' in messageData) {
             showOnlinePeople(messageData.online);
         } else if ('text' in messageData){
-            setMessages(prev => ([...prev, {...messageData}]))
+            if(messageData.sender === selectedUserId){
+                setMessages(prev => ([...prev, {...messageData}]))
+            }
         }
     }
 
-    function sendMessage(ev){
-        ev.preventDefault();
-        console.log('sending');
-        if(newMessageText.trim() !== ''){
-            ws.send(JSON.stringify({
-                    recipient: selectedUserId,
-                    text: newMessageText,
-            }));
-            setNewMessageText('');
-            setMessages(prev => ([...prev,{
-                text: newMessageText,
-                sender:id,
-                recipient: selectedUserId,
-                _id: Date.now(),
-            }]));
+    function sendMessage(ev, file = null) {
+        if (ev) ev.preventDefault();
+        if (!file && newMessageText.trim() === '') {
+          // Empty text input, no action needed
+          return;
         }
+        ws.send(JSON.stringify({
+          recipient: selectedUserId,
+          text: newMessageText,
+          file,
+        }));
+        if (file) {
+          axios.get('/messages/'+selectedUserId).then(res => {
+            setMessages(res.data);
+          });
+        } else {
+          setNewMessageText('');
+          setMessages(prev => ([...prev,{
+            text: newMessageText,
+            sender: id,
+            recipient: selectedUserId,
+            _id: Date.now(),
+          }]));
+        }
+      }
+
+    function sendFile(ev){
+        const reader = new FileReader();
+        reader.readAsDataURL(ev.target.files[0]);
+        reader.onload = () => {
+            sendMessage(null, {
+                name: ev.target.files[0].name,
+                data: reader.result,
+            });
+        };
     }
+
+    function logout(){
+        axios.post('/logout').then(()=>{
+            setWs(null);
+            setId(null);
+            setUsername(null);
+        });
+    }
+
+    useEffect(() => {
+        axios.get('/people').then(res =>{
+            const offlinePeopleArr = res.data
+                .filter(p => p._id !== id)
+                .filter(p => !Object.keys(onlinePeople).includes(p._id));   
+            const offlinePeople =  {};
+            offlinePeopleArr.forEach(p => {
+                offlinePeople[p._id] = p;
+            });
+            setOfflinePeople(offlinePeople);
+        })
+    },[onlinePeople]);
 
     useEffect(()=>{
         const div = divUnderMessages.current;
@@ -92,26 +142,44 @@ export function Chat(){
 
     return(
         <div className="flex h-screen">
-            <div className="bg-blue-50 w-1/6">
-                <div className='text-blue-700 font-bold flex items-center gap-2 p-4'>
-                    <BsCupStraw style={{ fontSize:'24px'}}/>
-                    <div>
-                        <span>BubbleChat</span><br/>
-                        <span style={{fontSize:'10px'}}>spill the tea</span>
-                    </div>
-                </div>
-                {Object.keys(onlinePplExclOurUser).map(userId => (
-                    <div onClick={()=> setSelectedUserId(userId)} key={userId} 
-                    className={'border-b border-gray-100 flex items-center gap-2 cursor-pointer '+(userId === selectedUserId ? 'bg-blue-200' : '')}>
-                        {userId === selectedUserId && (
-                            <div className='w-1 bg-blue-500 h-12 rounded-r-md'></div>
-                        )}
-                        <div className='flex gap-2 py-2 pl-4 items-center'>
-                            <Avatar username ={onlinePeople[userId]} userId={userId}/>
-                            <span className='text-gray-800'>{onlinePeople[userId]}</span>
+            <div className="bg-blue-50 w-1/6 flex flex-col">
+                <div className='flex-grow'>
+                    <div className='text-blue-700 font-bold flex items-center gap-2 p-4'>
+                        <BsCupStraw style={{ fontSize:'24px'}}/>
+                        <div>
+                            <span>BubbleChat</span><br/>
+                            <span style={{fontSize:'10px'}}>spill the tea</span>
                         </div>
                     </div>
-                ))}
+                    <div className='flex'>
+                        <div className='w-1/4 font-serif'>bar</div>
+                        <div className='w-3/4 font-serif'>
+                            {Object.keys(onlinePplExclOurUser).map(userId => (
+                                <Contact id={userId}
+                                        key={userId}
+                                        online = {true}
+                                        username={onlinePplExclOurUser[userId]}
+                                        onClick={()=>setSelectedUserId(userId)}
+                                        selected={userId === selectedUserId} />
+                                        
+                            ))}
+                            {Object.keys(offlinePeople).map(userId => (
+                                <Contact id={userId}
+                                        key={userId}
+                                        online = {false}
+                                        username={offlinePeople[userId].username}
+                                        onClick={()=>setSelectedUserId(userId)}
+                                        selected={userId === selectedUserId} />
+                                        
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <div className='p-3 flex items-center justify-center text-center'>
+                    <span className='flex items-center font-serif p-1'><RiUserSharedFill/>{username}</span>
+                    <button onClick={logout}
+                    className='text-sm bg-blue-300 py-1 px-2 text-gray-600 border rounded-sm'>Logout</button>
+                </div>
             </div>
             <div className="flex flex-col bg-blue-100 w-5/6 p-2">
                 <div className='flex-grow'>
@@ -134,17 +202,25 @@ export function Chat(){
                             )} */}
                     {!!selectedUserId && (
                         <div className='relative h-full'>
-                            <div className='overflow-y-scroll absolute top-0 left-0 right-0 bottom-2'>
+                            <div className='overflow-y-scroll absolute font-serif top-0 left-0 right-0 bottom-2'>
                                 {messagesWithOutDupes.map(message => (
                                     <div key={message._id} className={`flex items-center ${message.sender === id ? 'justify-end' : 'justify-start'}`}>
                                         {message.sender !== id && (
-                                            <Avatar username={onlinePeople[message.sender]} userId={message.sender} />
+                                            <Avatar username={onlinePplExclOurUser[selectedUserId] || offlinePeople[selectedUserId].username} online={!offlinePeople[message.sender]} userId={message.sender} />
                                         )}
                                         <div key={message._id} className={"text-left inline-block p-2 my-2 m-2 rounded-md text-sm " +(message.sender === id ? 'bg-blue-500 text-white':'bg-white text-gray-500')}>
                                             {message.text}
+                                            {message.file && (
+                                                <div>
+                                                    <a target="_blank" className="flex items-center gap-1 border-b" href={axios.defaults.baseURL + 'uploads/' + message.file}>
+                                                        <TiAttachment/>
+                                                        {message.file}
+                                                    </a>
+                                                </div>
+                                            )}
                                         </div>
                                         {message.sender === id && (
-                                            <Avatar username={username} userId={message.sender} />
+                                            <Avatar username={username} online={true} userId={message.sender} />
                                         )}
                                     </div>
                                 ))}
@@ -160,6 +236,10 @@ export function Chat(){
                             onChange = {ev => setNewMessageText(ev.target.value)}
                             placeholder="type your message here"
                             className="bg-white flex-grow rounded-sm border p-2"/>
+                    <label type='button' className="bg-gray-500 grid place-items-center p-2 text-white rounded-sm">
+                        <input type='file' className='hidden' onChange={sendFile}/>
+                        <div><IoDocumentAttachSharp/></div>
+                    </label>
                     <button type='submit' className="bg-blue-500 p-2 text-white rounded-sm">
                         <BsFillSendCheckFill/>
                     </button> 
