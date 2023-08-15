@@ -65,6 +65,7 @@ app.get('/profile',(req,res)=>{
 });
 
 
+
 app.get('/people', async (req,res) => {
     const users = await User.find({},{'_id':1,username:1});
     res.json(users);
@@ -91,6 +92,12 @@ app.get('/messages/:userId', async (req,res)=>{
     }).sort({createdAt:1});
     res.json(messages);
 });
+
+app.delete('/messages/:messageId', async (req,res) =>{
+  const messageId = req.params.messageId;
+  const messages = await Message.deleteOne({_id:messageId});
+  res.json(messages);
+})
 
 app.post('/login', async (req,res) => {
     const {username, password} = req.body;
@@ -180,14 +187,15 @@ wss.on('connection',(connection,req)=>{
     }
 
     connection.on('message', async (message)=>{
+        // console.log(`receive the message ${message}`);
         const messageData = JSON.parse(message.toString());
-        console.log(messageData);
+        // console.log(messageData);
         const{recipient, text,file} = messageData;
         let filename = null;
         if(file){
-            console.log('size',file.data.length);
+            // console.log('size',file.data.length);
             const parts = file.name.split('.');
-            console.log(parts);
+            // console.log(parts);
             const ext = parts[parts.length -1];
             filename = parts[0] + "." + ext;
             const __filename = fileURLToPath(import.meta.url);
@@ -216,6 +224,11 @@ wss.on('connection',(connection,req)=>{
             }))) ;
         }
     });
+
+    //TRY creating close 
+    connection.on('close', async (message)=>{
+      console.log(message);
+    })
     notifyAboutOnlinePeople();
 });
 

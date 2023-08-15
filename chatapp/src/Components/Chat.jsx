@@ -1,15 +1,17 @@
 import { useContext, useEffect, useState, useRef} from 'react';
-import { on } from 'ws';
 import { Avatar } from './Avatar';
 import { UserContext } from './UserContext';
 import axios from 'axios';
 import {uniqBy} from 'lodash';
-import { Contact } from './Contact';
+import  { Contact }  from './Contact';
+import Navbar from './Navbar';
 import {RiUserSharedFill} from 'react-icons/Ri';
 import {IoDocumentAttachSharp} from 'react-icons/io5'
 import {BsFillSendCheckFill} from 'react-icons/Bs';
 import {BsCupStraw} from 'react-icons/Bs';
-import {TiAttachment} from 'react-icons/Ti'
+import {TiAttachment} from 'react-icons/Ti';
+import {MdOutlinePowerSettingsNew} from 'react-icons/Md';
+import {MdRefresh} from 'react-icons/Md';
 
 export function Chat(){
     const [ws, setWs] = useState(null);
@@ -42,9 +44,12 @@ export function Chat(){
 
 
     function showOnlinePeople(peopleArray){
+        // console.log(peopleArray);
         const people = {};
         peopleArray.forEach(({userId, username}) => {
-            people[userId] = username;
+            if(userId){
+                people[userId] = username;
+            }
         });
         setOnlinePeople(people);
     }
@@ -56,10 +61,22 @@ export function Chat(){
             showOnlinePeople(messageData.online);
         } else if ('text' in messageData){
             if(messageData.sender === selectedUserId){
-                setMessages(prev => ([...prev, {...messageData}]))
+                setMessages(prev => ([...prev, {...messageData}]));
             }
         }
     }
+
+    function handleRecall(messageId) {
+        axios.delete('/messages/' + messageId)
+            .then(res => {
+                // setMessages(res.data);
+                setMessages(prevMessages => prevMessages.filter(msg => msg._id !== messageId));
+            })
+            .catch(error => {
+                console.error('Error deleting message:', error);
+            });
+    }
+
 
     function sendMessage(ev, file = null) {
         if (ev) ev.preventDefault();
@@ -103,6 +120,7 @@ export function Chat(){
             setWs(null);
             setId(null);
             setUsername(null);
+            setOfflinePeople(offlinePeople => ({ ...offlinePeople, [id]: offlinePeople[id] }));
         });
     }
 
@@ -132,13 +150,14 @@ export function Chat(){
               setMessages(res.data);
             });
           }
-    },[selectedUserId])
+    },[selectedUserId,messages])
 
     const onlinePplExclOurUser = {...onlinePeople};
     delete onlinePplExclOurUser[id];
 
 
     const messagesWithOutDupes = uniqBy(messages,'_id');
+    // console.log(messagesWithOutDupes);
 
     return(
         <div className="flex h-screen">
@@ -152,7 +171,9 @@ export function Chat(){
                         </div>
                     </div>
                     <div className='flex'>
-                        <div className='w-1/4 font-serif'>bar</div>
+                        <div>
+                            <Navbar />
+                        </div>
                         <div className='w-3/4 font-serif'>
                             {Object.keys(onlinePplExclOurUser).map(userId => (
                                 <Contact id={userId}
@@ -178,7 +199,7 @@ export function Chat(){
                 <div className='p-3 flex items-center justify-center text-center'>
                     <span className='flex items-center font-serif p-1'><RiUserSharedFill/>{username}</span>
                     <button onClick={logout}
-                    className='text-sm bg-blue-300 py-1 px-2 text-gray-600 border rounded-sm'>Logout</button>
+                    className='text-sm bg-blue-300 py-1 px-2 text-gray-600 border rounded-sm'><MdOutlinePowerSettingsNew/></button>
                 </div>
             </div>
             <div className="flex flex-col bg-blue-100 w-5/6 p-2">
@@ -208,6 +229,9 @@ export function Chat(){
                                         {message.sender !== id && (
                                             <Avatar username={onlinePplExclOurUser[selectedUserId] || offlinePeople[selectedUserId].username} online={!offlinePeople[message.sender]} userId={message.sender} />
                                         )}
+                                        {message.sender === id && (
+                                            <button className='bg-blue-300 border border-b rounded' onClick={() => handleRecall(message._id)}><MdRefresh/></button>
+                                        )}
                                         <div key={message._id} className={"text-left inline-block p-2 my-2 m-2 rounded-md text-sm " +(message.sender === id ? 'bg-blue-500 text-white':'bg-white text-gray-500')}>
                                             {message.text}
                                             {message.file && (
@@ -220,7 +244,7 @@ export function Chat(){
                                             )}
                                         </div>
                                         {message.sender === id && (
-                                            <Avatar username={username} online={true} userId={message.sender} />
+                                            <Avatar username={username} online={true} userId={message.sender} />  
                                         )}
                                     </div>
                                 ))}
