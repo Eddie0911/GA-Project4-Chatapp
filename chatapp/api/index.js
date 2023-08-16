@@ -27,11 +27,14 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname ,'uploads')));
 
+
 app.use(cors({
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     origin: process.env.CLIENT_URL,
 }));
+
+app.use(express.static('../dist'));
 
 async function getUserDataFromRequest(req) {
     return new Promise((resolve, reject) => {
@@ -144,7 +147,7 @@ app.post('/register', async(req,res)=>{
 });
 
 
-const server = app.listen(4040)
+const server = app.listen(process.env.PORT || 4040);
 
 const wss = new WebSocketServer({server});
 

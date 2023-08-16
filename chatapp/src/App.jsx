@@ -9,7 +9,8 @@ import Social from './Components/Social';
 import Friends from './Components/Friends';
 
 function App() {
-  axios.defaults.baseURL = 'http://localhost:4040/';
+  // axios.defaults.baseURL = 'http://localhost:4040/';
+  axios.defaults.baseURL = '/';
   axios.defaults.withCredentials = true;
 
   return (
