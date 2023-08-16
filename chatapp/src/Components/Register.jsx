@@ -40,8 +40,6 @@ export default function RegisterAndLoginForm() {
     }
     try{
     const response = await axios.post(url,data);
-    // console.log(response);
-    // console.log(response.data._id);
     setLoggedInUsername(username);
     setId(response.data._id);
     } catch(error){

@@ -97,7 +97,15 @@ app.delete('/messages/:messageId', async (req,res) =>{
   const messageId = req.params.messageId;
   const messages = await Message.deleteOne({_id:messageId});
   res.json(messages);
-})
+});
+
+// app.put('/updateUser/:userId', async (req,res)=>{
+//   const {newUsername , newPassword} = req.body;
+
+//   try{
+
+//   }
+// })
 
 app.post('/login', async (req,res) => {
     const {username, password} = req.body;
@@ -107,7 +115,7 @@ app.post('/login', async (req,res) => {
       if (passOk) {
         jwt.sign({userId:foundUser._id,username}, jwtSecret, {}, (err, token) => {
           res.cookie('token', token, {sameSite:'none', secure:true}).json({
-            id: foundUser._id,
+            _id: foundUser._id,
           });
         });
       }
@@ -144,8 +152,11 @@ wss.on('connection',(connection,req)=>{
 
     function notifyAboutOnlinePeople() {
         [...wss.clients].forEach(client => {
+          // console.log(wss.clients);
           client.send(JSON.stringify({
-            online: [...wss.clients].map(c => ({userId:c.userId,username:c.username})),
+            online: [...wss.clients]
+            .filter(c =>c.userId && c.username)
+            .map(c => ({userId:c.userId,username:c.username,isAlive:c.isAlive})),
           }));
         });
       }
@@ -186,9 +197,20 @@ wss.on('connection',(connection,req)=>{
         }
     }
 
+
     connection.on('message', async (message)=>{
-        // console.log(`receive the message ${message}`);
+        console.log(`receive the message ${message}`);
         const messageData = JSON.parse(message.toString());
+        if(messageData['type'] && messageData['type'] === 'delete'){
+          console.log(`excuting delete`);
+          [...wss.clients].forEach(c =>c.send(JSON.stringify({
+                type:'delete',
+            }))  
+          )
+          // return;
+        } else {
+          console.log(`saving message`);
+        // const messageData = JSON.parse(message.toString());
         // console.log(messageData);
         const{recipient, text,file} = messageData;
         let filename = null;
@@ -221,13 +243,18 @@ wss.on('connection',(connection,req)=>{
                 id:messageDoc._id,
                 recipient,
                 file:file ? filename : null,
-            }))) ;
+            })));
         }
+      }
     });
-
+  
     //TRY creating close 
-    connection.on('close', async (message)=>{
-      console.log(message);
+    connection.on('close', (message)=>{
+          connection.isAlive = false;
+          connection.terminate();
+      // console.log(message);
+      console.log('closing connection');
+      notifyAboutOnlinePeople();
     })
     notifyAboutOnlinePeople();
 });

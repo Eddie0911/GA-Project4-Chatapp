@@ -13,6 +13,7 @@ import {TiAttachment} from 'react-icons/Ti';
 import {MdOutlinePowerSettingsNew} from 'react-icons/Md';
 import {MdRefresh} from 'react-icons/Md';
 
+
 export function Chat(){
     const [ws, setWs] = useState(null);
     const [onlinePeople,setOnlinePeople] = useState({});
@@ -20,6 +21,7 @@ export function Chat(){
     const [selectedUserId,setSelectedUserId] = useState(null);
     const [newMessageText,setNewMessageText] = useState('');
     const [messages,setMessages] = useState([]);
+    const [messageScroll,setMessageScroll] = useState(false);
     // const [selectedUsername,setSelectedUsername] = useState(null);
     const {username,id,setId,setUsername} = useContext(UserContext);
     
@@ -34,6 +36,9 @@ export function Chat(){
         const ws = new WebSocket('ws://localhost:4040');
         setWs(ws);
         ws.addEventListener('message', handleMessage);
+        ws.addEventListener('delete', (message)=>{
+            console.log({message});
+        })
         ws.addEventListener('close', () => {
             setTimeout(() => {
                 console.log('Disconnected. Trying to reconnect.');
@@ -46,9 +51,17 @@ export function Chat(){
     function showOnlinePeople(peopleArray){
         // console.log(peopleArray);
         const people = {};
-        peopleArray.forEach(({userId, username}) => {
-            if(userId){
+        peopleArray
+        .forEach(({userId, username}) => {
+            // console.log(userId,username,id);
+            if(userId && id !== userId){
                 people[userId] = username;
+                console.log(offlinePeople);
+                if(offlinePeople[userId]){
+                    let uo = offlinePeople;
+                    delete uo[userId];
+                    setOfflinePeople({...uo});
+                }
             }
         });
         setOnlinePeople(people);
@@ -56,12 +69,19 @@ export function Chat(){
 
     function handleMessage(e){
         const messageData = JSON.parse(e.data);
-        // console.log(e,messageData);
+        console.log(e,messageData);
         if('online' in messageData) {
+            updateOnlinePpl();
             showOnlinePeople(messageData.online);
         } else if ('text' in messageData){
             if(messageData.sender === selectedUserId){
-                setMessages(prev => ([...prev, {...messageData}]));
+                // setMessages(prev => ([...prev, {...messageData}]));
+                updateMessage();
+            }
+        } else if( 'type' in messageData && messageData.type === 'delete'){
+            if(selectedUserId){
+            // setMessages(prev => ([...prev, {...messageData}]));
+            updateMessage();
             }
         }
     }
@@ -69,7 +89,12 @@ export function Chat(){
     function handleRecall(messageId) {
         axios.delete('/messages/' + messageId)
             .then(res => {
+                // updateMessage();
                 // setMessages(res.data);
+                ws.send(JSON.stringify({
+                    type:"delete",
+                    text:"delete both sides",
+                }))
                 setMessages(prevMessages => prevMessages.filter(msg => msg._id !== messageId));
             })
             .catch(error => {
@@ -89,19 +114,21 @@ export function Chat(){
           text: newMessageText,
           file,
         }));
-        if (file) {
-          axios.get('/messages/'+selectedUserId).then(res => {
-            setMessages(res.data);
-          });
-        } else {
+        // if (file) {
+        //   axios.get('/messages/'+selectedUserId).then(res => {
+        //     setMessages(res.data);
+        //   });
+            // updateMessage();
+        // } else {
           setNewMessageText('');
-          setMessages(prev => ([...prev,{
-            text: newMessageText,
-            sender: id,
-            recipient: selectedUserId,
-            _id: Date.now(),
-          }]));
-        }
+          updateMessage();
+        //   setMessages(prev => ([...prev,{
+        //     text: newMessageText,
+        //     sender: id,
+        //     recipient: selectedUserId,
+        //     _id: Date.now(),
+        //   }]));
+        // }
       }
 
     function sendFile(ev){
@@ -117,6 +144,8 @@ export function Chat(){
 
     function logout(){
         axios.post('/logout').then(()=>{
+            // ws.send(JSON.stringify({type:'close',text:'closing it'}));
+            ws.close();
             setWs(null);
             setId(null);
             setUsername(null);
@@ -124,7 +153,17 @@ export function Chat(){
         });
     }
 
-    useEffect(() => {
+    const scrollMessages = ()=>{
+        const div = divUnderMessages.current;
+        console.log(div);
+        console.log(divUnderMessages);
+        if(div && messageScroll){
+            div.scrollIntoView({block:'end'});
+            setMessageScroll(false);
+        }
+    }
+
+    const updateOnlinePpl = () =>{
         axios.get('/people').then(res =>{
             const offlinePeopleArr = res.data
                 .filter(p => p._id !== id)
@@ -132,32 +171,59 @@ export function Chat(){
             const offlinePeople =  {};
             offlinePeopleArr.forEach(p => {
                 offlinePeople[p._id] = p;
+                let newOnlinePpl = {...onlinePeople};
+                // if(){
+
+                // }
             });
             setOfflinePeople(offlinePeople);
+            // setOnlinePeople(onlinePeople.filter((e)=>{
+            //     console.log(e);
+            //     return !offlinePeople.includes(e._id);
+            // }))
         })
-    },[onlinePeople]);
+    }
+
+    useEffect(() => {
+        updateOnlinePpl();
+    },[]);
 
     useEffect(()=>{
-        const div = divUnderMessages.current;
-        if(div){
-            div.scrollIntoView({behavior:'smooth',block:'end'});
+        if(messageScroll){
+            scrollMessages();
         }
-    },[messages]);
+    },[messageScroll]);
+
+    const updateMessage = () =>{
+        axios.get('/messages/'+selectedUserId).then(res => {
+            setMessages(res.data);
+            setMessageScroll(true);
+            // scrollMessages();
+          });
+    }
 
     useEffect(()=>{
         if (selectedUserId) {
-            axios.get('/messages/'+selectedUserId).then(res => {
-              setMessages(res.data);
-            });
+            // axios.get('/messages/'+selectedUserId).then(res => {
+            //   setMessages(res.data);
+            //   setMessageScroll(true);
+            //   scrollMessages();
+            // });
+            updateMessage();
           }
-    },[selectedUserId,messages])
+    },[selectedUserId])
 
-    const onlinePplExclOurUser = {...onlinePeople};
-    delete onlinePplExclOurUser[id];
+    // const onlinePeople = {...onlinePeople};
+    // delete onlinePeople[id];
 
 
     const messagesWithOutDupes = uniqBy(messages,'_id');
     // console.log(messagesWithOutDupes);
+
+    const contactTriger = (userId)=>{
+        setSelectedUserId(userId);
+        setMessageScroll(true);
+    }
 
     return(
         <div className="flex h-screen">
@@ -175,12 +241,12 @@ export function Chat(){
                             <Navbar />
                         </div>
                         <div className='w-3/4 font-serif'>
-                            {Object.keys(onlinePplExclOurUser).map(userId => (
+                            {Object.keys(onlinePeople).map(userId => (
                                 <Contact id={userId}
                                         key={userId}
                                         online = {true}
-                                        username={onlinePplExclOurUser[userId]}
-                                        onClick={()=>setSelectedUserId(userId)}
+                                        username={onlinePeople[userId]}
+                                        onClick={()=>contactTriger(userId)}
                                         selected={userId === selectedUserId} />
                                         
                             ))}
@@ -189,7 +255,7 @@ export function Chat(){
                                         key={userId}
                                         online = {false}
                                         username={offlinePeople[userId].username}
-                                        onClick={()=>setSelectedUserId(userId)}
+                                        onClick={()=>contactTriger(userId)}
                                         selected={userId === selectedUserId} />
                                         
                             ))}
@@ -227,7 +293,7 @@ export function Chat(){
                                 {messagesWithOutDupes.map(message => (
                                     <div key={message._id} className={`flex items-center ${message.sender === id ? 'justify-end' : 'justify-start'}`}>
                                         {message.sender !== id && (
-                                            <Avatar username={onlinePplExclOurUser[selectedUserId] || offlinePeople[selectedUserId].username} online={!offlinePeople[message.sender]} userId={message.sender} />
+                                            <Avatar username={onlinePeople[selectedUserId] || offlinePeople[selectedUserId].username} online={!offlinePeople[message.sender]} userId={message.sender} />
                                         )}
                                         {message.sender === id && (
                                             <button className='bg-blue-300 border border-b rounded' onClick={() => handleRecall(message._id)}><MdRefresh/></button>
