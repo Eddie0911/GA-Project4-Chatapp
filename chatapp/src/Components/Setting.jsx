@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
 import axios from "axios";
+import {UserContext} from "./UserContext.jsx";
 
 export default function Setting() {
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const {id} = useContext(UserContext);
 
   const handleSubmit = (event) => {
     event.preventDefault();
     axios
-      .post("/updateUser", { newUsername, newPassword })
+      .put("/updateUser/"+id, { newUsername, newPassword })
       .then((response) => {
         setSuccessMessage("Username and password updated successfully.");
         setErrorMessage("");
@@ -24,19 +26,20 @@ export default function Setting() {
   };
 
   return (
-    <div className="flex">
+    <div className="flex ">
       <div className="w-1/6">
         <Navbar />
       </div>
-      <div className="w-5/6">
-        <p>Setting page, will be updated soon</p>
-        <form onSubmit={handleSubmit}>
+      <div className="w-5/6 bg-blue-50 h-screen flex items-center">
+        <form className='w-64 mx-auto mb-12' onSubmit={handleSubmit}>
+          <p>Change your username or password here:</p><br />
           <label>
             New Username:
             <input
               type="text"
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value)}
+              className="block w-full rounded-sm p-2 mb-2 border"
             />
           </label>
           <br />
@@ -46,10 +49,11 @@ export default function Setting() {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
+              className="block w-full rounded-sm p-2 mb-2 border"
             />
           </label>
           <br />
-          <button type="submit">Update</button>
+          <button className='bg-blue-500 text-white block w-full rounded-sm p-2' type="submit">Update</button>
         </form>
         {errorMessage && <p className="error-message">{errorMessage}</p>}
         {successMessage && <p className="success-message">{successMessage}</p>}

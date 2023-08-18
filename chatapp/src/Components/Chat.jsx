@@ -11,7 +11,7 @@ import {BsFillSendCheckFill} from 'react-icons/Bs';
 import {BsCupStraw} from 'react-icons/Bs';
 import {TiAttachment} from 'react-icons/Ti';
 import {MdOutlinePowerSettingsNew} from 'react-icons/Md';
-import {MdRefresh} from 'react-icons/Md';
+import {ImBin} from 'react-icons/Im';
 
 
 export function Chat(){
@@ -296,7 +296,7 @@ export function Chat(){
                                             <Avatar username={onlinePeople[selectedUserId] || offlinePeople[selectedUserId].username} online={!offlinePeople[message.sender]} userId={message.sender} />
                                         )}
                                         {message.sender === id && (
-                                            <button className='bg-blue-300 border border-b rounded' onClick={() => handleRecall(message._id)}><MdRefresh/></button>
+                                            <button className='bg-blue-300 border border-b rounded' onClick={() => handleRecall(message._id)}><ImBin/></button>
                                         )}
                                         <div key={message._id} className={"text-left inline-block p-2 my-2 m-2 rounded-md text-sm " +(message.sender === id ? 'bg-blue-500 text-white':'bg-white text-gray-500')}>
                                             {message.text}

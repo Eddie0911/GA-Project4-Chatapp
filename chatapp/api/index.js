@@ -102,13 +102,40 @@ app.delete('/messages/:messageId', async (req,res) =>{
   res.json(messages);
 });
 
-// app.put('/updateUser/:userId', async (req,res)=>{
-//   const {newUsername , newPassword} = req.body;
+app.put("/updateUser/:id", async (req, res) => {
+  const userId = req.params.id;
+  console.log(userId);
+  const { newUsername, newPassword } = req.body;
 
-//   try{
+  try {
+    const user = await User.findById(userId);
 
-//   }
-// })
+    if (!user) {
+      return res.status(404).json({ error: "user does not exist" });
+    }
+
+    
+    if (newUsername) {
+      user.username = newUsername;
+    }
+    if (newPassword) {
+      const hashedNewPassword = bcrypt.hashSync(newPassword, bcryptSalt);
+      user.password = hashedNewPassword;
+    }
+
+    await user.save();
+
+   
+    const token = jwt.sign({ userId: user._id, username: user.username }, jwtSecret, {});
+
+  
+    res.cookie("token", token, { sameSite: "none", secure: true }).status(200).json({ message: "update succeed" });
+  } catch (error) {
+    console.error("error:", error);
+    return res.status(400).json({ message: "something wrong." });
+  }
+});
+  
 
 app.post('/login', async (req,res) => {
     const {username, password} = req.body;
@@ -147,7 +174,8 @@ app.post('/register', async(req,res)=>{
 });
 
 
-const server = app.listen(process.env.PORT || 4040);
+// const server = app.listen(process.env.PORT || 4040);
+const server = app.listen(4040);
 
 const wss = new WebSocketServer({server});
 

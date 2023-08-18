@@ -6,6 +6,7 @@ export const UserContext = createContext({});
 export function UserContextProvider({children}){
     const [username, setUsername] = useState(null);
     const [id, setId] = useState(null);
+    const [password, setPassword] = useState(null);
     useEffect(()=>{
         function getCookie(name) {
             const value = `; ${document.cookie}`;
@@ -22,6 +23,7 @@ export function UserContextProvider({children}){
                 // console.log(response.data);
                 setId(response.data.userId);
                 setUsername(response.data.username);
+                setPassword(response.data.password);
                 // console.log(response.data.userId);
                 // console.log(response.data.username);
             }).catch(error =>{
@@ -30,7 +32,7 @@ export function UserContextProvider({children}){
         }
         },[])
 
-        const contextValue  = {username,setUsername,id,setId};
+        const contextValue  = {username,setUsername,id,setId,password,setPassword};
     return(
         <UserContext.Provider value={contextValue}>
             {children}
