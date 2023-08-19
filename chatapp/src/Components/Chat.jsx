@@ -34,7 +34,8 @@ export function Chat(){
       }, [selectedUserId]);
 
     function connectToWs() {
-        const ws = new WebSocket(`ws://${LOCALHOST}`);
+        // const ws = new WebSocket(`ws://${LOCALHOST}`);
+        const ws = new WebSocket(`wss://${LOCALHOST}`);
         setWs(ws);
         ws.addEventListener('message', handleMessage);
         ws.addEventListener('delete', (message)=>{
