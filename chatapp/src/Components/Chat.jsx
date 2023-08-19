@@ -45,12 +45,12 @@ export function Chat(){
         ws.addEventListener('delete', (message)=>{
             console.log({message});
         })
-        ws.addEventListener('close', () => {
-            setTimeout(() => {
-                console.log('Disconnected. Trying to reconnect.');
-                connectToWs();
-            }, 1000);
-        });
+        // ws.addEventListener('close', () => {
+        //     setTimeout(() => {
+        //         console.log('Disconnected. Trying to reconnect.');
+        //         connectToWs();
+        //     }, 1000);
+        // });
     }
 
 
