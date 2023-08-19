@@ -169,26 +169,25 @@ export function Chat(){
         }
     }
 
-    const updateOnlinePpl = () =>{
-        axios.get('/people').then(res =>{
+    const updateOnlinePpl = () => {
+        axios.get('/people').then(res => {
             const offlinePeopleArr = res.data
                 .filter(p => p._id !== id)
-                .filter(p => !Object.keys(onlinePeople).includes(p._id));   
-            const offlinePeople =  {};
+                .filter(p => !Object.keys(onlinePeople).includes(p._id));
+    
+            const offlinePeople = {};
+            const newOnlinePeople = { ...onlinePeople }; // Create a copy of the current onlinePeople
+    
             offlinePeopleArr.forEach(p => {
                 offlinePeople[p._id] = p;
-                let newOnlinePpl = {...onlinePeople};
-                // if(){
-
-                // }
+                delete newOnlinePeople[p._id]; // Remove the offline person from the newOnlinePeople list
             });
+    
             setOfflinePeople(offlinePeople);
-            // setOnlinePeople(onlinePeople.filter((e)=>{
-            //     console.log(e);
-            //     return !offlinePeople.includes(e._id);
-            // }))
-        })
-    }
+            setOnlinePeople(newOnlinePeople); // Update the onlinePeople list without the offline people
+        });
+    };
+    
 
     useEffect(() => {
         updateOnlinePpl();
