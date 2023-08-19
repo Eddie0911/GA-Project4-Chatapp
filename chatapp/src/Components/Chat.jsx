@@ -26,6 +26,7 @@ export function Chat(){
     const {username,id,setId,setUsername} = useContext(UserContext);
     
     const divUnderMessages = useRef();
+    const LOCALHOST = process.env.LOCALHOST
 
     //TODO Check useEffect 
     useEffect(() => {
@@ -33,7 +34,7 @@ export function Chat(){
       }, [selectedUserId]);
 
     function connectToWs() {
-        const ws = new WebSocket('ws://localhost:4040');
+        const ws = new WebSocket(`ws://${LOCALHOST}`);
         setWs(ws);
         ws.addEventListener('message', handleMessage);
         ws.addEventListener('delete', (message)=>{
