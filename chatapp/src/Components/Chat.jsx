@@ -12,7 +12,9 @@ import {BsCupStraw} from 'react-icons/Bs';
 import {TiAttachment} from 'react-icons/Ti';
 import {MdOutlinePowerSettingsNew} from 'react-icons/Md';
 import {ImBin} from 'react-icons/Im';
+import dotenv from 'dotenv';
 
+// dotenv.config();
 
 export function Chat(){
     const [ws, setWs] = useState(null);
@@ -25,8 +27,10 @@ export function Chat(){
     // const [selectedUsername,setSelectedUsername] = useState(null);
     const {username,id,setId,setUsername} = useContext(UserContext);
     
+
     const divUnderMessages = useRef();
-    const LOCALHOST = process.env.LOCALHOST
+    const LOCALHOST = import.meta.env.VITE_LOCALHOST;
+    console.log(LOCALHOST);
 
     //TODO Check useEffect 
     useEffect(() => {
@@ -35,7 +39,7 @@ export function Chat(){
 
     function connectToWs() {
         // const ws = new WebSocket(`ws://${LOCALHOST}`);
-        const ws = new WebSocket(`wss://${LOCALHOST}`);
+        const ws = new WebSocket(`${LOCALHOST}`);
         setWs(ws);
         ws.addEventListener('message', handleMessage);
         ws.addEventListener('delete', (message)=>{
