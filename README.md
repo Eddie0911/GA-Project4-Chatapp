@@ -34,7 +34,7 @@ Once the project is set up and the server is running, open a web browser and nav
 ## Contributors
 
 - [Your Name](https://github.com/your-username)
-- [Another Contributor](https://github.com/another-username)
+- [[Another Contributor](https://github.com/another-username)](https://ga-p4-chatapp.onrender.com/)
 
 Contributions through pull requests, issue reports, and new feature suggestions are welcome.
 
