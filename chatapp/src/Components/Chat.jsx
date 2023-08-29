@@ -32,19 +32,23 @@ export function Chat(){
     const LOCALHOST = import.meta.env.VITE_LOCALHOST;
     console.log(LOCALHOST);
 
+
     //TODO Check useEffect 
     useEffect(() => {
         connectToWs();
-      }, [selectedUserId]);
+      }, []);
+    
+    // useEffect(() => {
+    //     connectToWs();
+    // }, [selectedUserId]);
 
     function connectToWs() {
-        // const ws = new WebSocket(`ws://${LOCALHOST}`);
-        const ws = new WebSocket(`${LOCALHOST}`);
+        console.log()
+        const ws = new WebSocket(`ws://localhost:4040`);
+        // const ws = new WebSocket(`${LOCALHOST}`);
         setWs(ws);
         ws.addEventListener('message', handleMessage);
-        ws.addEventListener('delete', (message)=>{
-            console.log({message});
-        })
+        ws.addEventListener('delete', handleRecall);
         ws.addEventListener('close', () => {
             setTimeout(() => {
                 console.log('Disconnected. Trying to reconnect.');
@@ -55,7 +59,7 @@ export function Chat(){
 
 
     function showOnlinePeople(peopleArray){
-        // console.log(peopleArray);
+        console.log('test local or not');
         const people = {};
         peopleArray
         .forEach(({userId, username}) => {
@@ -75,14 +79,15 @@ export function Chat(){
 
     function handleMessage(e){
         const messageData = JSON.parse(e.data);
-        console.log(e,messageData);
+        console.log(e.data)
+        console.log(`handle message ${messageData}`,selectedUserId);
         if('online' in messageData) {
             updateOnlinePpl();
             showOnlinePeople(messageData.online);
         } else if ('text' in messageData){
-            if(messageData.sender === selectedUserId){
+            if(messageData.recipient === selectedUserId){
                 // setMessages(prev => ([...prev, {...messageData}]));
-                updateMessage();
+            updateMessage();
             }
         } else if( 'type' in messageData && messageData.type === 'delete'){
             if(selectedUserId){
@@ -101,7 +106,8 @@ export function Chat(){
                     type:"delete",
                     text:"delete both sides",
                 }))
-                setMessages(prevMessages => prevMessages.filter(msg => msg._id !== messageId));
+                // setMessages(prevMessages => prevMessages.filter(msg => msg._id !== messageId));
+                updateMessage();
             })
             .catch(error => {
                 console.error('Error deleting message:', error);

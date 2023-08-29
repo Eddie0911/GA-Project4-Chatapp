@@ -288,6 +288,6 @@ wss.on('connection',(connection,req)=>{
       console.log('closing connection');
       notifyAboutOnlinePeople();
     })
-    notifyAboutOnlinePeople();
+  notifyAboutOnlinePeople();
 });
 
