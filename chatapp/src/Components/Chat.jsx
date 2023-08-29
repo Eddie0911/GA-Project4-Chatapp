@@ -44,8 +44,8 @@ export function Chat(){
 
     function connectToWs() {
         console.log()
-        const ws = new WebSocket(`ws://localhost:4040`);
-        // const ws = new WebSocket(`${LOCALHOST}`);
+        // const ws = new WebSocket(`ws://localhost:4040`);
+        const ws = new WebSocket(`${LOCALHOST}`);
         setWs(ws);
         ws.addEventListener('message', handleMessage);
         ws.addEventListener('delete', handleRecall);
